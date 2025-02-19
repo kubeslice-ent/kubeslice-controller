@@ -18,7 +18,9 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+
 	"github.com/kubeslice/kubeslice-controller/metrics"
 
 	"github.com/kubeslice/kubeslice-controller/events"
@@ -54,11 +56,19 @@ func (n *NamespaceService) ReconcileProjectNamespace(ctx context.Context, namesp
 	n.mf.WithProject(util.GetProjectName(namespace)).
 		WithNamespace(ControllerNamespace)
 
+	// Fetch labels/annotations from ConfigMap
+	configLabels, configAnnotations, err := n.getNamespaceConfigFromConfigMap(ctx)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	combinedConfigLabels := mergeMaps(configLabels, n.getResourceLabel(namespace, owner))
+
 	if !found {
 		expectedNS := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:   namespace,
-				Labels: n.getResourceLabel(namespace, owner),
+				Name:        namespace,
+				Labels:      combinedConfigLabels,
+				Annotations: configAnnotations,
 			},
 		}
 		err := util.CreateResource(ctx, expectedNS)
@@ -84,6 +94,71 @@ func (n *NamespaceService) ReconcileProjectNamespace(ctx context.Context, namesp
 				"object_kind": metricKindNamespace,
 			},
 		)
+	} else {
+		// check if the namespace has the correct labels
+		if !util.CompareLabels(nsResource.Labels, combinedConfigLabels) {
+			// append missing labels
+			for key, value := range combinedConfigLabels {
+				if nsResource.Labels[key] != value {
+					nsResource.Labels[key] = value
+				}
+			}
+			err := util.UpdateResource(ctx, nsResource)
+			nsResource.Namespace = ControllerNamespace
+			if err != nil {
+				util.RecordEvent(ctx, eventRecorder, nsResource, nil, events.EventNamespaceUpdateFailed)
+				n.mf.RecordCounterMetric(metrics.KubeSliceEventsCounter,
+					map[string]string{
+						"action":      "update_failed",
+						"event":       string(events.EventNamespaceUpdateFailed),
+						"object_name": nsResource.Name,
+						"object_kind": metricKindNamespace,
+					},
+				)
+				return ctrl.Result{}, err
+			}
+			util.RecordEvent(ctx, eventRecorder, nsResource, nil, events.EventNamespaceUpdated)
+			n.mf.RecordCounterMetric(metrics.KubeSliceEventsCounter,
+				map[string]string{
+					"action":      "updated",
+					"event":       string(events.EventNamespaceUpdated),
+					"object_name": nsResource.Name,
+					"object_kind": metricKindNamespace,
+				},
+			)
+		}
+		// check if the annotations has the correct annotations
+		if !util.CompareAnnotations(nsResource.Annotations, configAnnotations) {
+			// append missing labels
+			for key, value := range configAnnotations {
+				if nsResource.Annotations[key] != value {
+					nsResource.Annotations[key] = value
+				}
+			}
+			err := util.UpdateResource(ctx, nsResource)
+			nsResource.Namespace = ControllerNamespace
+			if err != nil {
+				util.RecordEvent(ctx, eventRecorder, nsResource, nil, events.EventNamespaceUpdateFailed)
+				n.mf.RecordCounterMetric(metrics.KubeSliceEventsCounter,
+					map[string]string{
+						"action":      "update_failed",
+						"event":       string(events.EventNamespaceUpdateFailed),
+						"object_name": nsResource.Name,
+						"object_kind": metricKindNamespace,
+					},
+				)
+				return ctrl.Result{}, err
+			}
+			util.RecordEvent(ctx, eventRecorder, nsResource, nil, events.EventNamespaceUpdated)
+			n.mf.RecordCounterMetric(metrics.KubeSliceEventsCounter,
+				map[string]string{
+					"action":      "updated",
+					"event":       string(events.EventNamespaceUpdated),
+					"object_name": nsResource.Name,
+					"object_kind": metricKindNamespace,
+				},
+			)
+		}
 	}
 	return ctrl.Result{}, nil
 }
@@ -151,4 +226,46 @@ func (n *NamespaceService) getResourceLabel(namespace string, owner client.Objec
 	}
 	label[util.LabelName] = fmt.Sprintf(util.LabelValue, kind, namespace)
 	return label
+}
+
+// Fetch namespace ConfigMap from controller cluster
+func (n *NamespaceService) getNamespaceConfigFromConfigMap(ctx context.Context) (map[string]string, map[string]string, error) {
+
+	cm := &corev1.ConfigMap{}
+	found, err := util.GetResourceIfExist(ctx, client.ObjectKey{
+		Name:      "namespace-labels-config",
+		Namespace: ControllerNamespace,
+	}, cm)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if !found {
+		return nil, nil, err
+	}
+
+	labels := make(map[string]string)
+	annotations := make(map[string]string)
+
+	if err := json.Unmarshal([]byte(cm.Data["labels"]), &labels); err != nil {
+		return nil, nil, err
+	}
+	if err := json.Unmarshal([]byte(cm.Data["annotations"]), &annotations); err != nil {
+		return labels, nil, err
+	}
+
+	return labels, annotations, nil
+}
+
+// mergeMaps merges two maps, giving priority to values from overrideMap
+func mergeMaps(baseMap, overrideMap map[string]string) map[string]string {
+	result := make(map[string]string)
+	for k, v := range baseMap {
+		result[k] = v
+	}
+	for k, v := range overrideMap {
+		result[k] = v
+	}
+	return result
 }

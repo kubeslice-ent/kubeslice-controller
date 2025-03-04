@@ -97,6 +97,9 @@ func (n *NamespaceService) ReconcileProjectNamespace(ctx context.Context, namesp
 	} else {
 		// check if the namespace has the correct labels
 		if !util.CompareLabels(nsResource.Labels, combinedConfigLabels) {
+			if nsResource.Labels == nil {
+				nsResource.Labels = make(map[string]string)
+			}
 			// append missing labels
 			for key, value := range combinedConfigLabels {
 				if nsResource.Labels[key] != value {
@@ -129,7 +132,10 @@ func (n *NamespaceService) ReconcileProjectNamespace(ctx context.Context, namesp
 		}
 		// check if the annotations has the correct annotations
 		if !util.CompareAnnotations(nsResource.Annotations, configAnnotations) {
-			// append missing labels
+			if nsResource.Annotations == nil {
+				nsResource.Annotations = make(map[string]string)
+			}
+			// append missing annotations
 			for key, value := range configAnnotations {
 				if nsResource.Annotations[key] != value {
 					nsResource.Annotations[key] = value

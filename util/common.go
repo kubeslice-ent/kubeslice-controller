@@ -235,3 +235,34 @@ func DifferenceOfArray(a, b []string) (diff []string) {
 	}
 	return diff
 }
+
+func RemoveElementFromArray(slice []string, element string) (arr []string) {
+	for i, v := range slice {
+		if v == element {
+			return append(slice[:i], slice[i+1:]...)
+		}
+	}
+	return slice
+}
+
+var toFilter = []string{"kubeslice-", "kubernetes.io"}
+
+func partialContains(slice []string, str string) bool {
+	for _, s := range slice {
+		if strings.Contains(str, s) {
+			return true
+		}
+	}
+	return false
+}
+
+func FilterLabelsAndAnnotations(data map[string]string) map[string]string {
+	filtered := make(map[string]string)
+	for key, value := range data {
+		// Skip if `key` contains any substring in `toFilter`
+		if !partialContains(toFilter, key) {
+			filtered[key] = value
+		}
+	}
+	return filtered
+}

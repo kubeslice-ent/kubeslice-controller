@@ -22,10 +22,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
-	corev1 "k8s.io/api/core/v1"
 	"reflect"
 	"strings"
+
+	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
+	corev1 "k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -38,11 +39,11 @@ import (
 
 var (
 	LabelsKubeSliceController = map[string]string{
-		"kubeslice-resource-owner": "controller",
+		LabelResourceOwner: LabelValueResourceOwner,
 	}
 )
 var (
-	LabelName       = "kubeslice-controller-resource-name"
+	LabelName       = LabelManagedBy
 	LabelValue      = "%s-%s"
 	NamespacePrefix = "kubeslice-"
 )
@@ -230,20 +231,20 @@ func GetOwnerLabel(completeResourceName string) map[string]string {
 	//resourceName = fmt.Sprintf(LabelValue, GetObjectKind(owner), owner.GetName())
 	if lenCompleteResourceName > 63 {
 		noOfLabels := lenCompleteResourceName / 63
-		label["kubeslice-controller-resource-name"] = completeResourceName[j:63]
+		label[LabelManagedBy] = completeResourceName[j:63]
 		j = 63
 		lenCompleteResourceName = lenCompleteResourceName - 63
 		for i = 1; i <= noOfLabels; i++ {
 			if lenCompleteResourceName < 63 {
 				break
 			}
-			label["kubeslice-controller-resource-name-"+fmt.Sprint(i)] = completeResourceName[j : 63*(i+1)]
+			label[LabelManagedBy+"-"+fmt.Sprint(i)] = completeResourceName[j : 63*(i+1)]
 			lenCompleteResourceName = lenCompleteResourceName - 63
 			j = 63 * (i + 1)
 		}
-		label["kubeslice-controller-resource-name-"+fmt.Sprint(i)] = completeResourceName[j:]
+		label[LabelManagedBy+"-"+fmt.Sprint(i)] = completeResourceName[j:]
 	} else {
-		label["kubeslice-controller-resource-name"] = completeResourceName
+		label[LabelManagedBy] = completeResourceName
 	}
 	return label
 }
@@ -265,7 +266,33 @@ func EncodeToBase64(v interface{}) (string, error) {
 
 // CheckForProjectNamespace is a function to check namespace is in decided format
 func CheckForProjectNamespace(namespace *corev1.Namespace) bool {
-	return namespace.Labels[LabelName] == fmt.Sprintf(LabelValue, "Project", namespace.Name)
+	return namespace.Labels[LabelManagedBy] == fmt.Sprintf(LabelValue, ProjectKind, namespace.Name)
+}
+
+// CompareLabels is a function to compare the labels
+func CompareLabels(label1 map[string]string, label2 map[string]string) bool {
+	if len(label1) != len(label2) {
+		return false
+	}
+	for key, value := range label1 {
+		if label2[key] != value {
+			return false
+		}
+	}
+	return true
+}
+
+// CompareAnnotations is a function to compare the annotations
+func CompareAnnotations(annotations1 map[string]string, annotations2 map[string]string) bool {
+	if len(annotations1) != len(annotations2) {
+		return false
+	}
+	for key, value := range annotations1 {
+		if annotations2[key] != value {
+			return false
+		}
+	}
+	return true
 }
 
 // GetProjectName is function to get the project name from the namespace

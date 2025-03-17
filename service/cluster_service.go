@@ -18,7 +18,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -69,11 +68,11 @@ func (c *ClusterService) ReconcileCluster(ctx context.Context, req ctrl.Request)
 		WithNamespace(cluster.Namespace)
 
 	// Step 0: check if cluster is in project namespace
-	nsResource := &corev1.Namespace{}
+	projectNs := &corev1.Namespace{}
 	found, err = util.GetResourceIfExist(ctx, client.ObjectKey{
 		Name: req.Namespace,
-	}, nsResource)
-	if !found || !c.checkForProjectNamespace(nsResource) {
+	}, projectNs)
+	if !found || !c.checkForProjectNamespace(projectNs) {
 		logger.Infof("Created Cluster %v is not in project namespace. Returning from reconciliation loop.", req.NamespacedName)
 		return ctrl.Result{}, nil
 	}
@@ -208,11 +207,33 @@ func (c *ClusterService) ReconcileCluster(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	// Step 2: Fetch labels/annotations from ConfigMap
-	configLabels, configAnnotations, err := c.getNamespaceConfigFromConfigMap(ctx)
-	if err != nil {
-		return ctrl.Result{}, err
+	// Step 2: Apply ProjectNS labels/annotations
+	isUpdateRequired := false
+	if !util.CompareLabels(cluster.Labels, util.FilterLabelsAndAnnotations(projectNs.GetLabels())) {
+		if cluster.Labels == nil {
+			cluster.Labels = make(map[string]string)
+		}
+		for key, value := range util.FilterLabelsAndAnnotations(projectNs.GetLabels()) {
+			cluster.Labels[key] = value
+		}
+		isUpdateRequired = true
 	}
+	if !util.CompareAnnotations(cluster.Annotations, util.FilterLabelsAndAnnotations(projectNs.GetAnnotations())) {
+		if cluster.Annotations == nil {
+			cluster.Annotations = make(map[string]string)
+		}
+		for key, value := range util.FilterLabelsAndAnnotations(projectNs.GetAnnotations()) {
+			cluster.Annotations[key] = value
+		}
+		isUpdateRequired = true
+	}
+	if isUpdateRequired {
+		err := util.UpdateResource(ctx, cluster)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	// Step 3: Get ServiceAccount
 	serviceAccount := &corev1.ServiceAccount{}
 	_, err = util.GetResourceIfExist(ctx, types.NamespacedName{Name: fmt.Sprintf(ServiceAccountWorkerCluster, cluster.Name), Namespace: req.Namespace}, serviceAccount)
@@ -244,13 +265,8 @@ func (c *ClusterService) ReconcileCluster(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	// Step 6: Update Cluster with Secret
+	// Step 5: Update Cluster with Secret
 	cluster.Status.SecretName = secret.Name
-	// Step 6.1: Update Cluster with labels/annotations
-	cluster.Status.NamespaceConfig = controllerv1alpha1.NamespaceConfig{
-		NamespaceLabels:      configLabels,
-		NamespaceAnnotations: configAnnotations,
-	}
 	err = util.UpdateStatus(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -287,7 +303,7 @@ func (c *ClusterService) ReconcileCluster(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	// Step 7: NodeIP Reconciliation to WorkerSliceGateways
+	// Step 6: NodeIP Reconciliation to WorkerSliceGateways
 	// Should be only done if Network componets are present
 	if cluster.Status.NetworkPresent {
 		err = c.sgws.NodeIpReconciliationOfWorkerSliceGateways(ctx, cluster, req.Namespace)
@@ -363,34 +379,4 @@ func (c *ClusterService) DeleteClusters(ctx context.Context, namespace string) (
 		)
 	}
 	return ctrl.Result{}, nil
-}
-
-// Fetch namespace ConfigMap from controller cluster
-func (n *ClusterService) getNamespaceConfigFromConfigMap(ctx context.Context) (map[string]string, map[string]string, error) {
-
-	cm := &corev1.ConfigMap{}
-	found, err := util.GetResourceIfExist(ctx, client.ObjectKey{
-		Name:      "namespace-labels-config",
-		Namespace: ControllerNamespace,
-	}, cm)
-
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if !found {
-		return nil, nil, err
-	}
-
-	labels := make(map[string]string)
-	annotations := make(map[string]string)
-
-	if err := json.Unmarshal([]byte(cm.Data["labels"]), &labels); err != nil {
-		return nil, nil, err
-	}
-	if err := json.Unmarshal([]byte(cm.Data["annotations"]), &annotations); err != nil {
-		return labels, nil, err
-	}
-
-	return labels, annotations, nil
 }

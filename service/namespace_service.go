@@ -18,7 +18,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/kubeslice/kubeslice-controller/metrics"
@@ -56,20 +55,23 @@ func (n *NamespaceService) ReconcileProjectNamespace(ctx context.Context, namesp
 	n.mf.WithProject(util.GetProjectName(namespace)).
 		WithNamespace(ControllerNamespace)
 
-	// Fetch labels/annotations from ConfigMap
-	configLabels, configAnnotations, err := n.getNamespaceConfigFromConfigMap(ctx)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	combinedConfigLabels := mergeMaps(configLabels, n.getResourceLabel(namespace, owner))
-
 	if !found {
 		expectedNS := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        namespace,
-				Labels:      combinedConfigLabels,
-				Annotations: configAnnotations,
+				Name:   namespace,
+				Labels: n.getResourceLabel(namespace, owner),
 			},
+		}
+		//append additional labels
+		for key, value := range util.FilterLabelsAndAnnotations(owner.GetLabels()) {
+			expectedNS.Labels[key] = value
+		}
+		if expectedNS.Annotations == nil {
+			expectedNS.Annotations = make(map[string]string)
+		}
+		//append additional annotations
+		for key, value := range util.FilterLabelsAndAnnotations(owner.GetAnnotations()) {
+			expectedNS.Annotations[key] = value
 		}
 		err := util.CreateResource(ctx, expectedNS)
 		expectedNS.Namespace = ControllerNamespace
@@ -96,15 +98,26 @@ func (n *NamespaceService) ReconcileProjectNamespace(ctx context.Context, namesp
 		)
 	} else {
 		// check if the namespace has the correct labels
-		if !util.CompareLabels(nsResource.Labels, combinedConfigLabels) {
+		if !util.CompareLabels(nsResource.Labels, n.getResourceLabel(namespace, owner)) {
 			if nsResource.Labels == nil {
 				nsResource.Labels = make(map[string]string)
 			}
 			// append missing labels
-			for key, value := range combinedConfigLabels {
+			for key, value := range n.getResourceLabel(namespace, owner) {
 				if nsResource.Labels[key] != value {
 					nsResource.Labels[key] = value
 				}
+			}
+			// append additional labels
+			for key, value := range util.FilterLabelsAndAnnotations(owner.GetLabels()) {
+				nsResource.Labels[key] = value
+			}
+			if nsResource.Annotations == nil {
+				nsResource.Annotations = make(map[string]string)
+			}
+			//  append additional annotations
+			for key, value := range util.FilterLabelsAndAnnotations(owner.GetAnnotations()) {
+				nsResource.Annotations[key] = value
 			}
 			err := util.UpdateResource(ctx, nsResource)
 			nsResource.Namespace = ControllerNamespace
@@ -130,13 +143,13 @@ func (n *NamespaceService) ReconcileProjectNamespace(ctx context.Context, namesp
 				},
 			)
 		}
-		// check if the annotations has the correct annotations
-		if !util.CompareAnnotations(nsResource.Annotations, configAnnotations) {
+		// check if the namespace has the correct annotations
+		if !util.CompareAnnotations(nsResource.Annotations, util.FilterLabelsAndAnnotations(owner.GetAnnotations())) {
 			if nsResource.Annotations == nil {
 				nsResource.Annotations = make(map[string]string)
 			}
 			// append missing annotations
-			for key, value := range configAnnotations {
+			for key, value := range util.FilterLabelsAndAnnotations(owner.GetAnnotations()) {
 				if nsResource.Annotations[key] != value {
 					nsResource.Annotations[key] = value
 				}
@@ -232,46 +245,4 @@ func (n *NamespaceService) getResourceLabel(namespace string, owner client.Objec
 	}
 	label[util.LabelName] = fmt.Sprintf(util.LabelValue, kind, namespace)
 	return label
-}
-
-// Fetch namespace ConfigMap from controller cluster
-func (n *NamespaceService) getNamespaceConfigFromConfigMap(ctx context.Context) (map[string]string, map[string]string, error) {
-
-	cm := &corev1.ConfigMap{}
-	found, err := util.GetResourceIfExist(ctx, client.ObjectKey{
-		Name:      "namespace-labels-config",
-		Namespace: ControllerNamespace,
-	}, cm)
-
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if !found {
-		return nil, nil, err
-	}
-
-	labels := make(map[string]string)
-	annotations := make(map[string]string)
-
-	if err := json.Unmarshal([]byte(cm.Data["labels"]), &labels); err != nil {
-		return nil, nil, err
-	}
-	if err := json.Unmarshal([]byte(cm.Data["annotations"]), &annotations); err != nil {
-		return labels, nil, err
-	}
-
-	return labels, annotations, nil
-}
-
-// mergeMaps merges two maps, giving priority to values from overrideMap
-func mergeMaps(baseMap, overrideMap map[string]string) map[string]string {
-	result := make(map[string]string)
-	for k, v := range baseMap {
-		result[k] = v
-	}
-	for k, v := range overrideMap {
-		result[k] = v
-	}
-	return result
 }

@@ -131,6 +131,14 @@ type ClusterStatus struct {
 
 	// VCPURestriction is the restriction on the cluster disabling the creation of new pods
 	VCPURestriction *VCPURestriction `json:"vCPURestriction,omitempty"`
+	GPURestriction  *GPURestriction  `json:"GPURestriction,omitempty"`
+}
+
+type GPURestriction struct {
+	// +kubebuilder:validation:Minimum=0
+	ViolationCount    int    `json:"violationCount,omitempty"`
+	LastViolationTime string `json:"lastViolationTime,omitempty"`
+	Message           string `json:"message,omitempty"`
 }
 
 type VCPURestriction struct {

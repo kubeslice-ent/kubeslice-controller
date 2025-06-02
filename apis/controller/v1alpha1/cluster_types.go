@@ -135,10 +135,10 @@ type ClusterStatus struct {
 }
 
 type GPURestriction struct {
-	// +kubebuilder:validation:Minimum=0
-	ViolationCount    int    `json:"violationCount,omitempty"`
-	LastViolationTime string `json:"lastViolationTime,omitempty"`
-	Message           string `json:"message,omitempty"`
+	// EnforceRestrictions is the flag to check if the cluster is restricted
+	EnforceRestrictions bool `json:"enforceRestrictions,omitempty"`
+	// LastUpdatedTimestamp is the timestamp when the enforcement was updated
+	LastUpdatedTimestamp metav1.Time `json:"lastUpdatedTimestamp,omitempty"`
 }
 
 type VCPURestriction struct {

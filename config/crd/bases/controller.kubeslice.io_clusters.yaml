@@ -115,13 +115,15 @@ spec:
             properties:
               GPURestriction:
                 properties:
-                  lastViolationTime:
+                  enforceRestrictions:
+                    description: EnforceRestrictions is the flag to check if the cluster
+                      is restricted
+                    type: boolean
+                  lastUpdatedTimestamp:
+                    description: LastUpdatedTimestamp is the timestamp when the enforcement
+                      was updated
+                    format: date-time
                     type: string
-                  message:
-                    type: string
-                  violationCount:
-                    minimum: 0
-                    type: integer
                 type: object
               clusterHealth:
                 description: ClusterHealth shows the health of the worker cluster

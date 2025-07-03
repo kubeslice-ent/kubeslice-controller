@@ -19,6 +19,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/util/retry"
 	"time"
 
 	"github.com/kubeslice/kubeslice-controller/metrics"
@@ -234,7 +235,10 @@ func (c *ClusterService) ReconcileCluster(ctx context.Context, req ctrl.Request)
 
 	//Step 5: Update Cluster with Secret
 	cluster.Status.SecretName = secret.Name
-	err = util.UpdateStatus(ctx, cluster)
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		return util.UpdateStatus(ctx, cluster)
+	})
+	//err = util.UpdateStatus(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -251,7 +255,10 @@ func (c *ClusterService) ReconcileCluster(ctx context.Context, req ctrl.Request)
 	// This logic is to set NodeIPs to nil, if an empty string is set in the first index.
 	if len(cluster.Spec.NodeIPs) > 0 && cluster.Spec.NodeIPs[0] == "" {
 		cluster.Spec.NodeIPs = nil
-		err = util.UpdateResource(ctx, cluster)
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			return util.UpdateResource(ctx, cluster)
+		})
+		//err = util.UpdateResource(ctx, cluster)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -263,8 +270,10 @@ func (c *ClusterService) ReconcileCluster(ctx context.Context, req ctrl.Request)
 			cluster.Spec.NodeIPs = make([]string, 1)
 		}
 		cluster.Spec.NodeIPs[0] = cluster.Spec.NodeIP
-
-		err = util.UpdateResource(ctx, cluster)
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			return util.UpdateResource(ctx, cluster)
+		})
+		//err = util.UpdateResource(ctx, cluster)
 		if err != nil {
 			return ctrl.Result{}, err
 		}

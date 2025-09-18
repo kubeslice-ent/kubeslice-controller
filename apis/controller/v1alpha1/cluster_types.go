@@ -47,6 +47,13 @@ const (
 	RegistrationStatusDeregistered         = "Deregistered"
 )
 
+type MetricSource string
+
+const (
+	DCGM   MetricSource = "dcgm"
+	JETSON MetricSource = "jetson"
+)
+
 // ClusterSpec defines the desired state of Cluster
 type ClusterSpec struct {
 	//NodeIP is the IP address of the Node - deprecated field use Plural NodeIPs
@@ -66,6 +73,10 @@ type ClusterProperty struct {
 	GeoLocation GeoLocation `json:"geoLocation,omitempty"`
 	//Monitoring contains the Kubernetes Monitoring Dashboard
 	Monitoring Monitoring `json:"monitoring,omitempty"`
+	// metric source
+	// +kubebuilder:validation:Enum=dcgm;jetson
+	// +kubebuilder:default=dcgm
+	MetricSource MetricSource `json:"metricSource,omitempty"`
 }
 
 // Telemetry defines the field of ClusterSpec

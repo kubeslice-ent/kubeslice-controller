@@ -140,8 +140,13 @@ type ClusterStatus struct {
 // To add support for a new storage system, append its CSI provisioner string to the
 // worker operator's rwxProvisioners list — no changes to this struct are required.
 type StorageCapabilities struct {
-	// RWXStorageClasses lists all ReadWriteMany-capable StorageClasses detected on the cluster
+	// RWXStorageClasses lists all ReadWriteMany-capable StorageClasses detected on the cluster,
+	// sorted ascending by name for stable ordering.
 	RWXStorageClasses []RWXStorageClass `json:"rwxStorageClasses,omitempty"`
+	// DefaultStorageClass is the name of the StorageClass annotated with
+	// storageclass.kubernetes.io/is-default-class: "true" on the worker cluster.
+	// Used by egs-core-apis to select the storage class for inference endpoint PVCs.
+	DefaultStorageClass string `json:"defaultStorageClass,omitempty"`
 	// LastUpdated is the timestamp when capabilities were last detected
 	LastUpdated metav1.Time `json:"lastUpdated,omitempty"`
 }

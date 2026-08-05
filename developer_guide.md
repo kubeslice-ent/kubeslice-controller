@@ -88,12 +88,23 @@ kubectl apply -f config/samples/controller_v1alpha1_cluster.yaml -n=kubeslice-ci
 kubectl apply -f config/samples/controller_v1alpha1_sliceconfig.yaml -n=kubeslice-cisco
 ```
 
-### Running unit-test cases
-After running this command it will generate a report under `coverage-report/report.html`
-open this on your browser for the coverage report
+### Running the tests
+
+Unit tests for the `service` package. This generates a report under
+`coverage-report/report.html` — open it in your browser for the coverage report.
 ```bash
 make unit-test
 ```
+
+Integration tests for the reconcilers and webhooks, run against a real API server with
+envtest. The first run downloads the `kube-apiserver` and `etcd` binaries for Kubernetes
+1.26.0.
+```bash
+make test-local
+```
+
+See [Running the Tests](README.md#running-the-tests) for running individual tests and for
+the `-gcflags=-l` flag the unit tests depend on.
 
 ### Uninstalling the kubeslice-controller
 ```bash

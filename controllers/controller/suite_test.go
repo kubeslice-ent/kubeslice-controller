@@ -236,6 +236,12 @@ var _ = BeforeSuite(func() {
 	err = (&controllerv1alpha1.Project{}).SetupWebhookWithManager(k8sManager, service.ValidateProjectCreate, service.ValidateProjectUpdate, service.ValidateProjectDelete)
 	Expect(err).ToNot(HaveOccurred())
 
+	err = (&controllerv1alpha1.SliceQoSConfig{}).SetupWebhookWithManager(k8sManager, service.ValidateSliceQosConfigCreate, service.ValidateSliceQosConfigUpdate, service.ValidateSliceQosConfigDelete)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&controllerv1alpha1.ServiceExportConfig{}).SetupWebhookWithManager(k8sManager, service.ValidateServiceExportConfigCreate, service.ValidateServiceExportConfigUpdate, service.ValidateServiceExportConfigDelete)
+	Expect(err).ToNot(HaveOccurred())
+
 	go func() {
 		defer GinkgoRecover()
 		err = k8sManager.Start(ctx)

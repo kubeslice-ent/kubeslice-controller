@@ -108,6 +108,7 @@ var _ = Describe("VpnKeyRotation Controller", Ordered, func() {
 			}, timeout, interval).Should(BeTrue())
 			cluster1.Status.CniSubnet = []string{"192.168.0.0/24"}
 			cluster1.Status.RegistrationStatus = v1alpha1.RegistrationStatusRegistered
+			cluster1.Status.NetworkPresent = true
 			Expect(k8sClient.Status().Update(ctx, cluster1)).Should(Succeed())
 
 			Expect(k8sClient.Create(ctx, cluster2)).Should(Succeed())
@@ -123,6 +124,7 @@ var _ = Describe("VpnKeyRotation Controller", Ordered, func() {
 				}
 				cluster2.Status.CniSubnet = []string{"192.168.1.0/24"}
 				cluster2.Status.RegistrationStatus = v1alpha1.RegistrationStatusRegistered
+				cluster2.Status.NetworkPresent = true
 				err = k8sClient.Status().Update(ctx, cluster2)
 				if err != nil {
 					return false
@@ -142,6 +144,7 @@ var _ = Describe("VpnKeyRotation Controller", Ordered, func() {
 			}, timeout, interval).Should(BeTrue())
 			cluster3.Status.CniSubnet = []string{"192.168.2.0/24"}
 			cluster3.Status.RegistrationStatus = v1alpha1.RegistrationStatusRegistered
+			cluster3.Status.NetworkPresent = true
 			cluster3.Status.ClusterHealth = &v1alpha1.ClusterHealth{
 				ClusterHealthStatus: v1alpha1.ClusterHealthStatusNormal,
 				LastUpdated:         metav1.Now(),
@@ -511,6 +514,7 @@ var _ = Describe("VpnKeyRotation Controller", Ordered, func() {
 			}, timeout, interval).Should(BeTrue())
 			cluster1.Status.CniSubnet = []string{"192.168.0.0/24"}
 			cluster1.Status.RegistrationStatus = v1alpha1.RegistrationStatusRegistered
+			cluster1.Status.NetworkPresent = true
 			Expect(k8sClient.Status().Update(ctx, cluster1)).Should(Succeed())
 
 			Expect(k8sClient.Create(ctx, cluster2)).Should(Succeed())
@@ -525,6 +529,7 @@ var _ = Describe("VpnKeyRotation Controller", Ordered, func() {
 			}, timeout, interval).Should(BeTrue())
 			cluster2.Status.CniSubnet = []string{"192.168.1.0/24"}
 			cluster2.Status.RegistrationStatus = v1alpha1.RegistrationStatusRegistered
+			cluster2.Status.NetworkPresent = true
 			Expect(k8sClient.Status().Update(ctx, cluster2)).Should(Succeed())
 
 			Expect(k8sClient.Create(ctx, cluster3)).Should(Succeed())
@@ -539,6 +544,7 @@ var _ = Describe("VpnKeyRotation Controller", Ordered, func() {
 			}, timeout, interval).Should(BeTrue())
 			cluster3.Status.CniSubnet = []string{"10.1.1.1/16"}
 			cluster3.Status.RegistrationStatus = v1alpha1.RegistrationStatusRegistered
+			cluster3.Status.NetworkPresent = true
 			Expect(k8sClient.Status().Update(ctx, cluster3)).Should(Succeed())
 
 			// it should create sliceconfig
@@ -720,6 +726,7 @@ var _ = Describe("VpnKeyRotation Controller", Ordered, func() {
 			}, timeout, interval).Should(BeTrue())
 			cluster1.Status.CniSubnet = []string{"192.168.0.0/24"}
 			cluster1.Status.RegistrationStatus = v1alpha1.RegistrationStatusRegistered
+			cluster1.Status.NetworkPresent = true
 			Expect(k8sClient.Status().Update(ctx, cluster1)).Should(Succeed())
 
 			Expect(k8sClient.Create(ctx, cluster2)).Should(Succeed())
@@ -734,6 +741,7 @@ var _ = Describe("VpnKeyRotation Controller", Ordered, func() {
 			}, timeout, interval).Should(BeTrue())
 			cluster2.Status.CniSubnet = []string{"192.168.1.0/24"}
 			cluster2.Status.RegistrationStatus = v1alpha1.RegistrationStatusRegistered
+			cluster2.Status.NetworkPresent = true
 			Expect(k8sClient.Status().Update(ctx, cluster2)).Should(Succeed())
 
 			Expect(k8sClient.Create(ctx, cluster3)).Should(Succeed())
@@ -748,6 +756,7 @@ var _ = Describe("VpnKeyRotation Controller", Ordered, func() {
 			}, timeout, interval).Should(BeTrue())
 			cluster3.Status.CniSubnet = []string{"10.1.1.1/16"}
 			cluster3.Status.RegistrationStatus = v1alpha1.RegistrationStatusRegistered
+			cluster3.Status.NetworkPresent = true
 			Expect(k8sClient.Status().Update(ctx, cluster3)).Should(Succeed())
 
 			// it should create sliceconfig

@@ -87,6 +87,7 @@ var _ = Describe("Slice Config controller Tests", Ordered, func() {
 		}, timeout, interval).Should(BeTrue())
 		Cluster1.Status.CniSubnet = []string{"192.168.0.0/24"}
 		Cluster1.Status.RegistrationStatus = v1alpha1.RegistrationStatusRegistered
+		Cluster1.Status.NetworkPresent = true
 
 		Eventually(func() bool {
 			err := k8sClient.Status().Update(ctx, Cluster1)
@@ -117,6 +118,7 @@ var _ = Describe("Slice Config controller Tests", Ordered, func() {
 		}, timeout, interval).Should(BeTrue())
 		Cluster2.Status.CniSubnet = []string{"192.168.1.0/24"}
 		Cluster2.Status.RegistrationStatus = v1alpha1.RegistrationStatusRegistered
+		Cluster2.Status.NetworkPresent = true
 
 		Eventually(func() bool {
 			err := k8sClient.Status().Update(ctx, Cluster2)
